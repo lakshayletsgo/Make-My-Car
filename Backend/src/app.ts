@@ -1,100 +1,52 @@
-import express, { Express } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
 import compression from 'compression';
+import cors from 'cors';
+import express from 'express';
+import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import { config } from './config/index.js';
-import { errorHandler, notFoundHandler } from './middleware/index.js';
-import routes from './routes/index.js';
-import { logger } from './utils/logger.js';
+import { env } from './config/env.js';
+import { errorHandler, notFoundHandler } from './middleware/error.js';
+import apiRouter from './routes/index.js';
 
-export function createApp(): Express {
+export function createApp() {
   const app = express();
 
-  // ============================================
-  // SECURITY MIDDLEWARE
-  // ============================================
-
-  // Helmet - security headers
   app.use(helmet());
-
-  // CORS
-  app.use(cors({
-    origin: config.cors.origin,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  }));
-
-  // Rate limiting
-  const limiter = rateLimit({
-    windowMs: config.rateLimit.windowMs,
-    max: config.rateLimit.max,
-    message: {
-      success: false,
-      error: 'Too many requests, please try again later',
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
-
-  app.use('/api', limiter);
-
-  // ============================================
-  // PARSING MIDDLEWARE
-  // ============================================
-
-  // Compression
+  app.use(
+    cors({
+      origin: env.CORS_ORIGIN,
+      credentials: true,
+    }),
+  );
   app.use(compression());
+  app.use(express.json({ limit: '2mb' }));
+  app.use(express.urlencoded({ extended: true }));
 
-  // Parse JSON bodies
-  app.use(express.json({ limit: '10mb' }));
-
-  // Parse URL-encoded bodies
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-  // ============================================
-  // LOGGING
-  // ============================================
-
-  // Morgan HTTP logging
-  if (config.env !== 'test') {
-    app.use(morgan('combined', {
-      stream: {
-        write: (message: string) => logger.http(message.trim()),
-      },
-    }));
+  if (env.NODE_ENV !== 'test') {
+    app.use(morgan('dev'));
   }
 
-  // ============================================
-  // ROUTES
-  // ============================================
+  app.use(
+    env.API_PREFIX,
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 300,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    apiRouter,
+  );
 
-  // API routes
-  app.use(`/api/${config.apiVersion}`, routes);
-
-  // Root endpoint
   app.get('/', (_req, res) => {
     res.json({
       success: true,
-      message: 'Welcome to Make My Car API',
-      version: config.apiVersion,
-      docs: `/api/${config.apiVersion}/health`,
+      message: 'Make My Car backend is running',
+      docsHint: `${env.API_PREFIX}/health`,
     });
   });
 
-  // ============================================
-  // ERROR HANDLING
-  // ============================================
-
-  // 404 handler
   app.use(notFoundHandler);
-
-  // Global error handler
   app.use(errorHandler);
 
   return app;
 }
-
-export default createApp;

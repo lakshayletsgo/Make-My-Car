@@ -1,89 +1,31 @@
-import { Request, Response, NextFunction } from 'express';
-import { AppError, ValidationError } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
-import { config } from '../config/index.js';
+import type { NextFunction, Request, Response } from 'express';
+import { env } from '../config/env.js';
 
-/**
- * Global error handler middleware
- */
-export const errorHandler = (
-  err: Error,
-  _req: Request,
-  res: Response,
-  _next: NextFunction
-): void => {
-  // Log error
-  logger.error(err.message, { stack: err.stack });
+export class ApiError extends Error {
+  readonly statusCode: number;
 
-  // Handle known application errors
-  if (err instanceof AppError) {
-    const response: {
-      success: boolean;
-      error: string;
-      errors?: Record<string, string[]>;
-    } = {
+  constructor(message: string, statusCode = 500) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+export function notFoundHandler(_req: Request, _res: Response, next: NextFunction): void {
+  next(new ApiError('Route not found', 404));
+}
+
+export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
+  if (err instanceof ApiError) {
+    res.status(err.statusCode).json({
       success: false,
-      error: err.message,
-    };
-
-    // Include validation errors if present
-    if (err instanceof ValidationError) {
-      response.errors = err.errors;
-    }
-
-    res.status(err.statusCode).json(response);
+      message: err.message,
+    });
     return;
   }
 
-  // Handle Prisma errors
-  if (err.constructor.name === 'PrismaClientKnownRequestError') {
-    const prismaError = err as unknown as { code: string; meta?: { target?: string[] } };
-    
-    switch (prismaError.code) {
-      case 'P2002':
-        res.status(409).json({
-          success: false,
-          error: `Duplicate value for field: ${prismaError.meta?.target?.join(', ') || 'unknown'}`,
-        });
-        return;
-      case 'P2025':
-        res.status(404).json({
-          success: false,
-          error: 'Record not found',
-        });
-        return;
-      default:
-        break;
-    }
-  }
-
-  // Handle unknown errors
-  const isDev = config.env === 'development';
-  
   res.status(500).json({
     success: false,
-    error: isDev ? err.message : 'Internal server error',
-    ...(isDev && { stack: err.stack }),
+    message: 'Internal server error',
+    details: env.NODE_ENV === 'development' ? String(err) : undefined,
   });
-};
-
-/**
- * Handle 404 routes
- */
-export const notFoundHandler = (req: Request, res: Response): void => {
-  res.status(404).json({
-    success: false,
-    error: `Route ${req.method} ${req.originalUrl} not found`,
-  });
-};
-
-/**
- * Async handler wrapper to catch errors
- */
-export const asyncHandler = <P = any, ResBody = any, ReqBody = any, ReqQuery = any>(
-  fn: (req: Request<P, ResBody, ReqBody, ReqQuery>, res: Response, next: NextFunction) => Promise<any>
-) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    Promise.resolve(fn(req as any, res, next)).catch(next);
-  };
-};
+}
