@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-from app.db import supabase
+from app.db import supabase, supabase_admin
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
@@ -30,6 +30,28 @@ async def register(payload: RegisterRequest):
                 }
             },
         })
+        
+        if not res or not getattr(res, "user", None):
+            raise ValueError("no user returned from Supabase Auth")
+
+        user = res.user
+        if supabase_admin:
+            try:
+                # Insert profile record using admin client to bypass RLS.
+                # Since the schema requires a password, we provide a dummy value 
+                # because the actual password is securely managed by Supabase Auth.
+                supabase_admin.table('users').insert({
+                    'id': user.id,
+                    'email': payload.email,
+                    'password': '[SUPABASE_MANAGED]',
+                    'name': payload.name,
+                    'phone': getattr(payload, 'phone', None) or "",
+                    'role': 'USER'
+                }).execute()
+            except Exception as e:
+                # If the insert fails, log it. The auth user is still created.
+                print(f"Failed to insert user profile: {e}")
+
     except Exception as exc:
         detail = str(exc)
         if "already registered" in detail.lower() or "already been registered" in detail.lower():

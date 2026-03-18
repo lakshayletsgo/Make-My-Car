@@ -8,6 +8,7 @@ except Exception:
 class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
     API_VERSION: str = "v1"
     APP_BASE_URL: str = "http://localhost:3000"
     CORS_ORIGINS: str = "http://localhost:3000"
