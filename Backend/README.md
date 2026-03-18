@@ -1,71 +1,31 @@
-# Make My Car Backend (Express)
+# BackendFastAPI
 
-Fast TypeScript backend scaffold using Express.
+Minimal FastAPI backend scaffold for Make My Car.
 
-## Features
+Prereqs
+- Python 3.11+
+- Supabase Postgres instance (or local Postgres)
 
-- Express + TypeScript
-- Security middleware (`helmet`, `cors`, rate limiter)
-- Compression + request logging
-- Health endpoint for uptime checks
-- Centralized error handling
-- Vitest + Supertest baseline test
+Quick start
 
-## Project Structure
-
-```text
-Backend/
-  src/
-    app.ts
-    server.ts
-    config/env.ts
-    middleware/error.ts
-    routes/
-      health.routes.ts
-      index.ts
-    scripts/smoke.ts
-  test/health.test.ts
-  .env.example
-  package.json
-  tsconfig.json
-```
-
-## Quick Start
-
-1. Install dependencies:
+1. Create virtualenv and install deps
 
 ```bash
-npm install
+python -m venv .venv
+.venv\Scripts\activate   # Windows
+pip install -r requirements.txt
 ```
 
-2. Create env file:
+2. Copy `.env.example` to `.env` and set `DATABASE_URL` to your Supabase Postgres URL.
+
+3. Apply the SQL schema in Supabase (use the SQL from the project `prisma/schema.prisma` converted SQL). You can run it in Supabase SQL editor.
+
+4. Run dev server
 
 ```bash
-cp .env.example .env
+python main.py
 ```
 
-3. Start in dev mode:
-
-```bash
-npm run dev
-```
-
-4. Health check:
-
-```bash
-curl http://localhost:5000/api/v1/health
-```
-
-## Validation
-
-Run tests:
-
-```bash
-npm test
-```
-
-Run smoke test:
-
-```bash
-npm run smoke
-```
+What's next
+- Implement APIs: auth, vendors, reviews, cars, favorites using Postgres queries or an ORM.
+- Add migrations/seeding workflow (optional). 
