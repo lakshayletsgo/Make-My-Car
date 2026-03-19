@@ -9,7 +9,7 @@ import { Menu, Car } from "lucide-react"
 
 const navLinks = [
   { href: "/", label: "Home" },
-  { href: "/setup", label: "Add Your Car" },
+  { href: "/add-car", label: "Add Your Car" },
   { href: "/recommendations", label: "Recommendations" },
   { href: "/about", label: "About" },
   { href: "/dashboard", label: "Dashboard" },

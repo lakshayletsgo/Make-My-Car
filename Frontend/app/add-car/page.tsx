@@ -1,4 +1,4 @@
-import { AddCarForm } from "@/components/setup/add-car-form"
+import { CarSetupForm } from "@/components/setup/car-setup-form"
 
 export const metadata = {
   title: "Add Your Car — Make My Car",
@@ -23,7 +23,7 @@ export default function SetupPage() {
           </p>
         </div>
 
-        <AddCarForm />
+        <CarSetupForm />
       </div>
     </section>
   )
