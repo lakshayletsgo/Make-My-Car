@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function SetupPage() {
   return (
-    <section className="bg-gradient-to-b from-muted/50 via-background to-background py-16 lg:py-24">
+    <section className="bg-linear-to-b from-muted/50 via-background to-background py-16 lg:py-24">
       <div className="mx-auto max-w-4xl px-4 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">

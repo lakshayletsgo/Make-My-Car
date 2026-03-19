@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers.health import router as health_router
 from app.api.routers.auth import router as auth_router
 from app.api.routers.vendors import router as vendors_router
+from app.api.routers.admin import router as admin_router
+from app.api.routers.bookings import router as bookings_router
+from app.api.routers.cars import router as cars_router
 from app.core.config import settings
 
 app = FastAPI(title="Make My Car API (FastAPI)")
@@ -20,6 +23,9 @@ app.add_middleware(
 app.include_router(health_router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(auth_router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(vendors_router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(bookings_router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(cars_router, prefix=f"/api/{settings.API_VERSION}")
 
 @app.get("/")
 async def root():

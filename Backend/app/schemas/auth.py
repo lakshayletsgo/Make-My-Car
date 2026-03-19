@@ -32,6 +32,12 @@ class UserOut(BaseModel):
     email: EmailStr
     name: str
     role: str
+    is_verified: bool = False
+
+
+class MeResponse(BaseModel):
+    user: UserOut
+    vendor_id: Optional[str] = None
 
 
 class RegisterResponse(BaseModel):

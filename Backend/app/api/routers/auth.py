@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from app.db import supabase, supabase_admin
 from app.schemas.auth import (
     RegisterRequest,
@@ -8,9 +8,11 @@ from app.schemas.auth import (
     VerifyEmailRequest,
     ResendVerificationRequest,
     GenericMessageResponse,
+    MeResponse,
 )
 from app.core.security import (
     decode_email_verification_token,
+    get_current_user,
 )
 
 router = APIRouter()
@@ -124,3 +126,25 @@ async def resend_verification(payload: ResendVerificationRequest):
         pass
 
     return {'message': 'If the email exists, a verification link has been sent.'}
+
+
+@router.get('/auth/me', response_model=MeResponse)
+async def get_me(current_user=Depends(get_current_user)):
+    vendor_id = None
+    if current_user.get("role") == "VENDOR":
+        email = current_user.get("email")
+        if email:
+            vendor_rows = supabase.table("vendors").select("id").eq("email", email).limit(1).execute().data or []
+            if vendor_rows:
+                vendor_id = vendor_rows[0]["id"]
+
+    return {
+        "user": {
+            "id": current_user["id"],
+            "email": current_user["email"],
+            "name": current_user["name"],
+            "role": current_user["role"],
+            "is_verified": bool(current_user.get("is_verified", False)),
+        },
+        "vendor_id": vendor_id,
+    }

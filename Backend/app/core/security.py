@@ -3,7 +3,7 @@ from typing import Optional
 
 import jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, Header
+from fastapi import Depends, HTTPException, Header
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from app.core.config import settings
@@ -12,6 +12,7 @@ from app.db import supabase
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = settings.JWT_ALGORITHM
+ALLOWED_ROLES = {"USER", "VENDOR", "ADMIN"}
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -64,18 +65,45 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid auth header")
 
+    # Primary path: validate Supabase-issued JWT using Supabase Auth API.
+    user_id = None
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[ALGORITHM])
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        auth_user = supabase.auth.get_user(token)
+        user_obj = getattr(auth_user, "user", None)
+        if user_obj and getattr(user_obj, "id", None):
+            user_id = user_obj.id
+    except Exception:
+        # Fallback path for legacy/local JWTs that are signed with app JWT secret.
+        try:
+            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[ALGORITHM])
+            user_id = payload.get("user_id") or payload.get("userId") or payload.get("sub")
+        except jwt.PyJWTError:
+            raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-    user_id = payload.get("user_id") or payload.get("userId") or payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
 
-    result = supabase.table("users").select("id,email,name,role").eq("id", user_id).limit(1).execute()
+    result = supabase.table("users").select("id,email,name,role,is_verified").eq("id", user_id).limit(1).execute()
     users = result.data or []
     if not users:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    return users[0]
+    user = users[0]
+    role = str(user.get("role") or "").upper()
+    if role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid user role")
+
+    user["role"] = role
+    return user
+
+
+def require_roles(*roles: str):
+    allowed = {role.upper() for role in roles}
+
+    async def role_guard(current_user=Depends(get_current_user)):
+        user_role = str(current_user.get("role") or "").upper()
+        if user_role not in allowed:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return current_user
+
+    return role_guard

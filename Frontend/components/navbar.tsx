@@ -1,23 +1,33 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Menu, Car } from "lucide-react"
+import { clearSession, getDashboardRouteByRole, getStoredSession } from "@/lib/auth"
 
-const navLinks = [
+const publicNavLinks = [
   { href: "/", label: "Home" },
+  { href: "/about", label: "About" },
+]
+
+const userNavLinks = [
   { href: "/add-car", label: "Add Your Car" },
   { href: "/recommendations", label: "Recommendations" },
-  { href: "/about", label: "About" },
-  { href: "/dashboard", label: "Dashboard" },
+  { href: "/dashboard/user", label: "Dashboard" },
 ]
 
 export function Navbar() {
+  const router = useRouter()
+  const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState("")
 
   useEffect(() => {
     const handleScroll = () => {
@@ -26,6 +36,36 @@ export function Navbar() {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      const session = getStoredSession()
+      setIsAuthenticated(Boolean(session?.accessToken))
+      setUserEmail(session?.email || "")
+      setUserRole(session?.role || null)
+    }
+
+    syncAuthState()
+    window.addEventListener("storage", syncAuthState)
+    return () => window.removeEventListener("storage", syncAuthState)
+  }, [pathname])
+
+  const handleLogout = () => {
+    clearSession()
+    setIsAuthenticated(false)
+    setUserRole(null)
+    setUserEmail("")
+    setOpen(false)
+    router.push("/auth")
+  }
+
+  const navLinks = isAuthenticated
+    ? userRole === "USER"
+      ? [...publicNavLinks, ...userNavLinks]
+      : [...publicNavLinks, { href: getDashboardRouteByRole(userRole), label: "Dashboard" }]
+    : publicNavLinks
+
+  const dashboardHref = getDashboardRouteByRole(userRole)
 
   return (
     <header 
@@ -60,12 +100,26 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-muted/50">
-            Sign In
-          </Button>
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25">
-            Get Started
-          </Button>
+          {isAuthenticated ? (
+            <>
+              {userEmail ? <span className="max-w-45 truncate text-sm text-muted-foreground">{userEmail}</span> : null}
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-muted/50">
+                <Link href={dashboardHref}>Dashboard</Link>
+              </Button>
+              <Button size="sm" variant="outline" className="border-border hover:bg-muted" onClick={handleLogout}>
+                Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-muted/50">
+                <Link href="/auth">Sign In</Link>
+              </Button>
+              <Button asChild size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25">
+                <Link href="/auth">Get Started</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Nav */}
@@ -77,7 +131,7 @@ export function Navbar() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] bg-background border-border">
+            <SheetContent side="right" className="w-75 bg-background border-border">
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <div className="flex flex-col gap-6 pt-8">
                 <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
@@ -99,12 +153,35 @@ export function Navbar() {
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 pt-4 border-t border-border">
-                  <Button variant="outline" className="w-full border-border text-foreground hover:bg-muted">
-                    Sign In
-                  </Button>
-                  <Button className="w-full bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-                    Get Started
-                  </Button>
+                  {isAuthenticated ? (
+                    <>
+                      {userEmail ? <p className="truncate px-1 text-sm text-muted-foreground">{userEmail}</p> : null}
+                      <Button asChild variant="outline" className="w-full border-border text-foreground hover:bg-muted">
+                        <Link href={dashboardHref} onClick={() => setOpen(false)}>
+                          Dashboard
+                        </Link>
+                      </Button>
+                      <Button
+                        className="w-full bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                        onClick={handleLogout}
+                      >
+                        Logout
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button asChild variant="outline" className="w-full border-border text-foreground hover:bg-muted">
+                        <Link href="/auth" onClick={() => setOpen(false)}>
+                          Sign In
+                        </Link>
+                      </Button>
+                      <Button asChild className="w-full bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+                        <Link href="/auth" onClick={() => setOpen(false)}>
+                          Get Started
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </SheetContent>

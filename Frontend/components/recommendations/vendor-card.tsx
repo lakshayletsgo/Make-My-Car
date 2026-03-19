@@ -3,9 +3,9 @@ import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Star, MapPin, ShieldCheck, ArrowRight } from "lucide-react"
-import type { Vendor } from "@/lib/vendor-data"
+import type { VendorView } from "@/lib/vendors"
 
-export function VendorCard({ vendor }: { vendor: Vendor }) {
+export function VendorCard({ vendor }: { vendor: VendorView }) {
   const categoryColors: Record<string, string> = {
     insurance: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
     accessories: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
@@ -23,7 +23,7 @@ export function VendorCard({ vendor }: { vendor: Vendor }) {
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-card/80 via-transparent to-transparent" />
         <div className="absolute top-3 left-3 flex flex-wrap items-center gap-2">
           <Badge className={`border ${categoryColors[vendor.category]} text-xs font-medium`}>
             {vendor.category.charAt(0).toUpperCase() + vendor.category.slice(1)}

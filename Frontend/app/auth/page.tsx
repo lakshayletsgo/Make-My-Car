@@ -1,33 +1,36 @@
 "use client"
 
-import { useState } from "react"
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { getMe, login, register } from "@/lib/api"
+import { getDashboardRouteByRole, saveSession } from "@/lib/auth"
 
 export default function AuthPage() {
+  const router = useRouter()
   const [mode, setMode] = useState<"login" | "signup">("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
   const [message, setMessage] = useState("")
   const [token, setToken] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    const existingToken = localStorage.getItem("access_token") || localStorage.getItem("token")
+    const role = localStorage.getItem("user_role")
+    if (existingToken) {
+      router.replace(getDashboardRouteByRole(role))
+    }
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setMessage("")
+    setIsSubmitting(true)
 
     try {
       if (mode === "signup") {
-        const res = await fetch(`${API_BASE}/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, name }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setMessage(data?.detail || "Signup failed")
-          return
-        }
+        const data = await register({ email, password, name })
         setMessage(data?.message || "Signup successful. Verify your email.")
         if (data?.dev_verification_token) {
           setToken(data.dev_verification_token)
@@ -35,22 +38,15 @@ export default function AuthPage() {
         return
       }
 
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setMessage(data?.detail || "Login failed")
-        return
-      }
-
-      localStorage.setItem("access_token", data.access_token)
+      const data = await login(email, password)
+      const me = await getMe(data.access_token)
+      saveSession(data.access_token, me)
       setMessage("Login successful")
-      window.location.href = "/recommendations"
-    } catch {
-      setMessage("Cannot reach backend API. Check backend server and NEXT_PUBLIC_API_BASE_URL.")
+      router.replace(getDashboardRouteByRole(me.user.role))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Cannot reach backend API. Check backend server and NEXT_PUBLIC_API_BASE_URL.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -102,8 +98,12 @@ export default function AuthPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button className="w-full rounded bg-black px-3 py-2 text-white" type="submit">
-          {mode === "login" ? "Login" : "Sign up"}
+        <button
+          className="w-full rounded bg-black px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60"
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Please wait..." : mode === "login" ? "Login" : "Sign up"}
         </button>
       </form>
 

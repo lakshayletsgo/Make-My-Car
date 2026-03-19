@@ -1,12 +1,12 @@
 import { MapPin, Navigation, Locate } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { Vendor } from "@/lib/vendor-data"
+import type { VendorView } from "@/lib/vendors"
 
-export function MapView({ vendors }: { vendors: Vendor[] }) {
+export function MapView({ vendors }: { vendors: VendorView[] }) {
   return (
     <div className="relative rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
       {/* Map placeholder */}
-      <div className="relative h-[300px] lg:h-[400px] bg-gradient-to-br from-muted via-muted/50 to-muted">
+      <div className="relative h-75 lg:h-100 bg-linear-to-br from-muted via-muted/50 to-muted">
         {/* Grid lines for visual effect */}
         <div className="absolute inset-0 opacity-30 dark:opacity-20">
           <div className="h-full w-full" style={{
@@ -47,7 +47,7 @@ export function MapView({ vendors }: { vendors: Vendor[] }) {
           return (
             <div
               key={vendor.id}
-              className="absolute flex flex-col items-center cursor-pointer group z-[5]"
+              className="absolute flex flex-col items-center cursor-pointer group z-5"
               style={{ left: pos.left, top: pos.top }}
             >
               <div className="rounded-full bg-card border-2 border-primary p-2 shadow-lg transition-all duration-300 group-hover:scale-125 group-hover:shadow-xl group-hover:shadow-primary/20">
