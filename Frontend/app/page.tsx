@@ -1,15 +1,17 @@
-"use client"
-
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { CTASection } from "@/components/home/cta-section"
+import { FeaturesSection } from "@/components/home/features-section"
+import { HeroSection } from "@/components/home/hero-section"
+import { SearchSection } from "@/components/home/search-section"
+import { TestimonialsSection } from "@/components/home/testimonials-section"
 
 export default function HomePage() {
-  const router = useRouter()
-
-  useEffect(() => {
-    const token = localStorage.getItem("access_token") || localStorage.getItem("token")
-    router.replace(token ? "/recommendations" : "/auth")
-  }, [router])
-
-  return null
+  return (
+    <>
+      <HeroSection />
+      <SearchSection />
+      <FeaturesSection />
+      <TestimonialsSection />
+      <CTASection />
+    </>
+  )
 }

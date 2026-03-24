@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,11 +22,13 @@ import { getStoredRole } from "@/lib/auth"
 import type { VendorView } from "@/lib/vendors"
 
 export function VendorDetails({ vendor, vendorApi }: { vendor: VendorView; vendorApi: ApiVendor }) {
+  const router = useRouter()
   const categoryLabel = vendor.category.charAt(0).toUpperCase() + vendor.category.slice(1)
   const [slotAt, setSlotAt] = useState("")
   const [notes, setNotes] = useState("")
   const [message, setMessage] = useState("")
   const [isBooking, setIsBooking] = useState(false)
+  const isAuthenticated = typeof window !== "undefined" ? Boolean(localStorage.getItem("access_token") || localStorage.getItem("token")) : false
   const role = typeof window !== "undefined" ? getStoredRole() : null
   const canBook = role === "USER"
 
@@ -265,7 +268,19 @@ export function VendorDetails({ vendor, vendorApi }: { vendor: VendorView; vendo
                     </Button>
                     {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
                   </>
-                ) : null}
+                ) : !isAuthenticated ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">Sign in is required to book an appointment.</p>
+                    <Button
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-base font-medium shadow-lg shadow-primary/25"
+                      onClick={() => router.push("/auth")}
+                    >
+                      Sign In to Book Appointment
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Only user accounts can book appointments.</p>
+                )}
 
                 <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-base font-medium shadow-lg shadow-primary/25">
                   <Phone className="mr-2 h-5 w-5" />

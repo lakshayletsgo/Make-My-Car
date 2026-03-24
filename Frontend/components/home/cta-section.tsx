@@ -44,7 +44,7 @@ export function CTASection() {
             
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
               <Button asChild size="lg" className="h-14 bg-white px-10 text-primary hover:bg-white/90 text-base font-semibold shadow-xl">
-                <Link href="/setup">
+                <Link href="/add-car">
                   Add Your Car Now
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>

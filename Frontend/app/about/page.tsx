@@ -75,7 +75,7 @@ export default function AboutPage() {
                 time and money, one recommendation at a time.
               </p>
               <Button asChild className="mt-8 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 text-base shadow-lg shadow-primary/25">
-                <Link href="/setup">
+                <Link href="/add-car">
                   Get Started
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -222,7 +222,7 @@ export default function AboutPage() {
               </p>
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <Button asChild size="lg" className="h-14 bg-white px-10 text-primary hover:bg-white/90 text-base font-semibold shadow-xl">
-                  <Link href="/setup">
+                  <Link href="/add-car">
                     Add Your Car
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>

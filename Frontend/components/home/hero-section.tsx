@@ -59,7 +59,7 @@ export function HeroSection() {
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base font-medium border-border hover:bg-muted">
-                <Link href="/setup">
+                <Link href="/add-car">
                   Add Your Car
                 </Link>
               </Button>

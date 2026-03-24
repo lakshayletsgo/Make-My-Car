@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { AuthGate } from '@/components/auth-gate'
+import { DevExtensionErrorFilter } from '@/components/dev-extension-error-filter'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
@@ -56,6 +57,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
+          <DevExtensionErrorFilter />
           <AuthGate>
             <Navbar />
             <main className="min-h-screen">{children}</main>

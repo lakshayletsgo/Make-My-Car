@@ -9,7 +9,7 @@ type AuthGateProps = {
   children: React.ReactNode
 }
 
-const PUBLIC_PATHS = ["/auth", "/auth/verify-email"]
+const PROTECTED_PATHS = ["/add-car", "/my-cars", "/dashboard"]
 
 const ROLE_ROUTES: Record<string, string> = {
   USER: "/dashboard/user",
@@ -31,9 +31,9 @@ export function AuthGate({ children }: AuthGateProps) {
   const pathname = usePathname()
   const [isChecking, setIsChecking] = useState(true)
 
-  const isPublicPath = useMemo(() => {
+  const isProtectedPath = useMemo(() => {
     if (!pathname) return false
-    return PUBLIC_PATHS.some((publicPath) => pathname === publicPath || pathname.startsWith(`${publicPath}/`))
+    return PROTECTED_PATHS.some((protectedPath) => pathname === protectedPath || pathname.startsWith(`${protectedPath}/`))
   }, [pathname])
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export function AuthGate({ children }: AuthGateProps) {
     const isAuthenticated = Boolean(token)
     let role = getStoredRole()
 
-    if (!isAuthenticated && !isPublicPath) {
+    if (!isAuthenticated && isProtectedPath) {
       safeReplace("/auth")
       return
     }
@@ -78,7 +78,7 @@ export function AuthGate({ children }: AuthGateProps) {
       return
     }
 
-    if (pathname && !isPublicPath && role && !isPathAllowedForRole(pathname, role)) {
+    if (pathname && pathname.startsWith("/dashboard") && role && !isPathAllowedForRole(pathname, role)) {
       safeReplace(getDashboardRouteByRole(role))
       return
     }
@@ -91,7 +91,7 @@ export function AuthGate({ children }: AuthGateProps) {
     return () => {
       active = false
     }
-  }, [isPublicPath, pathname, router])
+  }, [isProtectedPath, pathname, router])
 
   if (isChecking) {
     return null

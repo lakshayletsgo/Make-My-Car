@@ -1,8 +1,42 @@
+"use client"
+
+import { useState } from "react"
 import { MapPin, Navigation, Locate } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { VendorView } from "@/lib/vendors"
 
 export function MapView({ vendors }: { vendors: VendorView[] }) {
+  const [locationMessage, setLocationMessage] = useState("")
+  const [isLocating, setIsLocating] = useState(false)
+
+  const handleLocateMe = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationMessage("Location services are not available in this browser.")
+      return
+    }
+
+    setIsLocating(true)
+    setLocationMessage("")
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude.toFixed(4)
+        const lon = position.coords.longitude.toFixed(4)
+        setLocationMessage(`Location access granted: ${lat}, ${lon}`)
+        setIsLocating(false)
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationMessage("Location permission was denied. Please enable it in your browser settings.")
+        } else {
+          setLocationMessage("Unable to access your location right now.")
+        }
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    )
+  }
+
   return (
     <div className="relative rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
       {/* Map placeholder */}
@@ -65,28 +99,33 @@ export function MapView({ vendors }: { vendors: VendorView[] }) {
         <Button
           size="sm"
           variant="outline"
+          onClick={handleLocateMe}
+          disabled={isLocating}
           className="absolute bottom-4 right-4 bg-card/90 backdrop-blur-sm border-border shadow-lg hover:bg-card"
         >
           <Locate className="mr-2 h-4 w-4" />
-          Locate Me
+          {isLocating ? "Locating..." : "Locate Me"}
         </Button>
       </div>
 
       {/* Map legend */}
-      <div className="flex items-center justify-between border-t border-border bg-muted/30 px-5 py-4">
-        <span className="text-sm text-muted-foreground">
-          Showing <span className="font-semibold text-foreground">{vendors.length}</span> vendors nearby
-        </span>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-primary shadow-sm" />
-            <span className="text-sm text-muted-foreground">Your location</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full border-2 border-primary bg-card" />
-            <span className="text-sm text-muted-foreground">Vendors</span>
+      <div className="border-t border-border bg-muted/30 px-5 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm text-muted-foreground">
+            Showing <span className="font-semibold text-foreground">{vendors.length}</span> vendors nearby
+          </span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-primary shadow-sm" />
+              <span className="text-sm text-muted-foreground">Your location</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full border-2 border-primary bg-card" />
+              <span className="text-sm text-muted-foreground">Vendors</span>
+            </div>
           </div>
         </div>
+        {locationMessage ? <p className="mt-2 text-sm text-muted-foreground">{locationMessage}</p> : null}
       </div>
     </div>
   )
