@@ -14,6 +14,14 @@ export type VendorView = {
   products: string[]
   image: string
   slug: string
+  latitude: number | null
+  longitude: number | null
+}
+
+function normalizeCoordinate(value: number, min: number, max: number): number | null {
+  if (!Number.isFinite(value)) return null
+  if (value < min || value > max) return null
+  return value
 }
 
 function normalizeCategory(category: string): VendorView["category"] {
@@ -24,7 +32,16 @@ function normalizeCategory(category: string): VendorView["category"] {
   return "service"
 }
 
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|mov|webm|m4v|avi|mkv)(\?.*)?$/i.test(url)
+}
+
 export function mapApiVendorToView(vendor: ApiVendor): VendorView {
+  const latitude = normalizeCoordinate(vendor.latitude, -90, 90)
+  const longitude = normalizeCoordinate(vendor.longitude, -180, 180)
+  const mediaCandidates = [vendor.image, ...(vendor.gallery || [])].filter(Boolean) as string[]
+  const displayImage = mediaCandidates.find((url) => !isVideoUrl(url)) || "/images/hero-car.jpg"
+
   return {
     id: vendor.id,
     name: vendor.name,
@@ -37,7 +54,9 @@ export function mapApiVendorToView(vendor: ApiVendor): VendorView {
     location: vendor.address,
     verified: vendor.is_verified,
     products: (vendor.products || []).map((product) => product.name),
-    image: vendor.image || "/images/hero-car.jpg",
+    image: displayImage,
     slug: vendor.slug,
+    latitude,
+    longitude,
   }
 }

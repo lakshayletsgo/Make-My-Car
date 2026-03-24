@@ -68,6 +68,7 @@ export type ApiVendor = {
 	category: string;
 	price_range: string;
 	address: string;
+	location?: string | null;
 	latitude: number;
 	longitude: number;
 	phone?: string | null;
@@ -187,15 +188,53 @@ export async function createVendorByAdmin(payload: {
 	category: string;
 	price_range: string;
 	address: string;
+	location?: string;
 	latitude: number;
 	longitude: number;
 	city_id: string;
 	website?: string;
 	image?: string;
+	gallery?: string[];
 }) {
 	return apiFetch('/admin/vendors', {
 		method: 'POST',
 		body: JSON.stringify(payload),
+	});
+}
+
+export async function uploadVendorBannersByAdmin(files: File[]): Promise<{ urls: string[] }> {
+	const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+	if (!token) {
+		throw new Error('Please login again to upload vendor banners.');
+	}
+
+	const formData = new FormData();
+	for (const file of files) {
+		formData.append('files', file);
+	}
+
+	const res = await fetch(`${BASE}/admin/vendors/banner-upload`, {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${token}`,
+		},
+		body: formData,
+	});
+
+	const text = await res.text();
+	const data = text ? JSON.parse(text) : null;
+
+	if (!res.ok) {
+		throw new Error(data?.detail || data?.message || 'Banner upload failed');
+	}
+
+	return data as { urls: string[] };
+}
+
+export async function resolveGoogleMapsLinkByAdmin(gmapsLink: string): Promise<{ latitude: number; longitude: number; resolved_url: string }> {
+	return apiFetch('/admin/maps/resolve', {
+		method: 'POST',
+		body: JSON.stringify({ gmaps_link: gmapsLink }),
 	});
 }
 

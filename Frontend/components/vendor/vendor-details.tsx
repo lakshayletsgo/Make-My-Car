@@ -21,6 +21,10 @@ import { createBooking, type ApiVendor } from "@/lib/api"
 import { getStoredRole } from "@/lib/auth"
 import type { VendorView } from "@/lib/vendors"
 
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|mov|webm|m4v|avi|mkv)(\?.*)?$/i.test(url)
+}
+
 export function VendorDetails({ vendor, vendorApi }: { vendor: VendorView; vendorApi: ApiVendor }) {
   const router = useRouter()
   const categoryLabel = vendor.category.charAt(0).toUpperCase() + vendor.category.slice(1)
@@ -31,6 +35,21 @@ export function VendorDetails({ vendor, vendorApi }: { vendor: VendorView; vendo
   const isAuthenticated = typeof window !== "undefined" ? Boolean(localStorage.getItem("access_token") || localStorage.getItem("token")) : false
   const role = typeof window !== "undefined" ? getStoredRole() : null
   const canBook = role === "USER"
+  const bannerMediaUrl = vendorApi.gallery?.[0] || vendor.image
+  const bannerIsVideo = isVideoUrl(bannerMediaUrl)
+  const directionsUrl = useMemo(() => {
+    const locationLink = (vendorApi.location || "").trim()
+    if (locationLink.startsWith("http://") || locationLink.startsWith("https://")) {
+      return locationLink
+    }
+
+    if (Number.isFinite(vendorApi.latitude) && Number.isFinite(vendorApi.longitude)) {
+      return `https://www.google.com/maps/search/?api=1&query=${vendorApi.latitude},${vendorApi.longitude}`
+    }
+
+    const encodedAddress = encodeURIComponent(vendorApi.address || vendor.location)
+    return encodedAddress ? `https://www.google.com/maps/search/?api=1&query=${encodedAddress}` : ""
+  }, [vendorApi.address, vendorApi.latitude, vendorApi.location, vendorApi.longitude, vendor.location])
 
   const categoryColors: Record<string, string> = {
     insurance: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
@@ -93,14 +112,26 @@ export function VendorDetails({ vendor, vendorApi }: { vendor: VendorView; vendo
           Back to Recommendations
         </Link>
 
-        <div className="relative h-64 md:h-80 lg:h-96 rounded-3xl overflow-hidden mb-10 shadow-xl">
-          <Image
-            src={vendor.image}
-            alt={vendor.name}
-            fill
-            className="object-cover"
-            priority
-          />
+        <div className="relative h-64 md:h-80 lg:h-96 rounded-3xl overflow-hidden mb-10 shadow-xl bg-muted">
+          {bannerIsVideo ? (
+            <video
+              src={bannerMediaUrl}
+              className="h-full w-full object-cover"
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls
+            />
+          ) : (
+            <Image
+              src={bannerMediaUrl}
+              alt={vendor.name}
+              fill
+              className="object-cover"
+              priority
+            />
+          )}
           <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
           <div className="absolute bottom-6 left-6 flex items-center gap-3">
             <Badge className={`border ${categoryColors[vendor.category]} text-sm px-4 py-1.5 font-medium`}>
@@ -286,9 +317,16 @@ export function VendorDetails({ vendor, vendorApi }: { vendor: VendorView; vendo
                   <Phone className="mr-2 h-5 w-5" />
                   Contact Vendor
                 </Button>
-                <Button variant="outline" className="w-full border-border hover:bg-muted h-12 text-base font-medium">
-                  <Navigation className="mr-2 h-5 w-5" />
-                  Get Directions
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full border-border hover:bg-muted h-12 text-base font-medium"
+                  disabled={!directionsUrl}
+                >
+                  <a href={directionsUrl || "#"} target="_blank" rel="noopener noreferrer">
+                    <Navigation className="mr-2 h-5 w-5" />
+                    Get Directions
+                  </a>
                 </Button>
                 <Button variant="ghost" className="w-full h-12 text-base font-medium text-muted-foreground hover:text-foreground">
                   <ExternalLink className="mr-2 h-5 w-5" />

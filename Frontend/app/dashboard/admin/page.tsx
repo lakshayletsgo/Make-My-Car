@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createVendorByAdmin, getAdminOverview, listCities, type AdminAnalyticsOverview, type City } from "@/lib/api"
+import { createVendorByAdmin, getAdminOverview, listCities, resolveGoogleMapsLinkByAdmin, uploadVendorBannersByAdmin, type AdminAnalyticsOverview, type City } from "@/lib/api"
+import { extractLatLngFromGoogleMapsLink, normalizeGoogleMapsInput } from "@/lib/map-helpers"
 
 const categories = ["INSURANCE", "ACCESSORIES", "SAFETY", "SERVICE"]
 const fallbackCities: City[] = [
@@ -19,11 +20,9 @@ type VendorForm = {
   category: string
   price_range: string
   address: string
-  latitude: string
-  longitude: string
+  gmaps_link: string
   city_id: string
   website: string
-  image: string
 }
 
 const initialForm: VendorForm = {
@@ -36,11 +35,13 @@ const initialForm: VendorForm = {
   category: "SERVICE",
   price_range: "",
   address: "",
-  latitude: "",
-  longitude: "",
+  gmaps_link: "",
   city_id: "",
   website: "",
-  image: "",
+}
+
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|mov|webm|m4v|avi|mkv)(\?.*)?$/i.test(url)
 }
 
 export default function AdminDashboardPage() {
@@ -51,6 +52,7 @@ export default function AdminDashboardPage() {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const [bannerFiles, setBannerFiles] = useState<File[]>([])
   const availableCities = cities.length > 0 ? cities : fallbackCities
 
   async function loadData() {
@@ -78,27 +80,54 @@ export default function AdminDashboardPage() {
       setMessage("")
       setError("")
 
+      const normalizedDescription = form.description.trim()
+      if (normalizedDescription.length < 10) {
+        throw new Error("Description must be at least 10 characters.")
+      }
+
+      const normalizedMapsLink = normalizeGoogleMapsInput(form.gmaps_link)
+      if (!normalizedMapsLink) {
+        throw new Error("Please provide a valid Google Maps location link.")
+      }
+
+      let coordinates = extractLatLngFromGoogleMapsLink(normalizedMapsLink)
+      if (!coordinates) {
+        const resolved = await resolveGoogleMapsLinkByAdmin(normalizedMapsLink)
+        coordinates = { latitude: resolved.latitude, longitude: resolved.longitude }
+      }
+
+      let bannerUrls: string[] = []
+      if (bannerFiles.length > 0) {
+        const uploadResult = await uploadVendorBannersByAdmin(bannerFiles)
+        bannerUrls = uploadResult.urls || []
+      }
+
+      const primaryImage = bannerUrls.find((url) => !isVideoUrl(url)) || bannerUrls[0]
+
       const response = await createVendorByAdmin({
         name: form.name,
         email: form.email,
         phone: form.phone || undefined,
         password: form.password || undefined,
         slug: form.slug,
-        description: form.description,
+        description: normalizedDescription,
         category: form.category,
         price_range: form.price_range,
         address: form.address,
-        latitude: Number(form.latitude),
-        longitude: Number(form.longitude),
+        location: normalizedMapsLink,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
         city_id: form.city_id,
         website: form.website || undefined,
-        image: form.image || undefined,
+        image: primaryImage || undefined,
+        gallery: bannerUrls,
       })
 
       setMessage(
         `Vendor created. Vendor ID: ${response.vendor_id}. Temporary password: ${response.temporary_password || "custom password"}`
       )
       setForm(initialForm)
+      setBannerFiles([])
       await loadData()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create vendor")
@@ -162,10 +191,30 @@ export default function AdminDashboardPage() {
               </select>
             </div>
             <InputField label="Address" className="md:col-span-2" value={form.address} onChange={(value) => setForm({ ...form, address: value })} required />
-            <InputField label="Latitude" value={form.latitude} onChange={(value) => setForm({ ...form, latitude: value })} required />
-            <InputField label="Longitude" value={form.longitude} onChange={(value) => setForm({ ...form, longitude: value })} required />
+            <InputField
+              label="Google Maps Link"
+              className="md:col-span-2"
+              value={form.gmaps_link}
+              onChange={(value) => setForm({ ...form, gmaps_link: value })}
+              required
+            />
             <InputField label="Website" value={form.website} onChange={(value) => setForm({ ...form, website: value })} />
-            <InputField label="Image URL" value={form.image} onChange={(value) => setForm({ ...form, image: value })} />
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-foreground">Banner Media (Images/Videos)</label>
+              <input
+                className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                onChange={(event) => setBannerFiles(Array.from(event.target.files || []))}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Files are uploaded to Supabase bucket "Banners" and shown on vendor banner.
+              </p>
+              {bannerFiles.length > 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">Selected: {bannerFiles.map((file) => file.name).join(", ")}</p>
+              ) : null}
+            </div>
             <div className="md:col-span-2">
               <label className="mb-1 block text-sm font-medium text-foreground">Description</label>
               <textarea

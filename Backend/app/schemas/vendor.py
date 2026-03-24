@@ -26,6 +26,7 @@ class VendorOut(BaseModel):
     category: str
     price_range: str
     address: str
+    location: Optional[str] = None
     latitude: float
     longitude: float
     phone: Optional[str]

@@ -12,11 +12,13 @@ class AdminCreateVendorRequest(BaseModel):
     category: str
     price_range: str
     address: str
+    location: Optional[str] = None
     latitude: float
     longitude: float
     city_id: str
     website: Optional[str] = None
     image: Optional[str] = None
+    gallery: Optional[list[str]] = None
 
 
 class AdminCreateVendorResponse(BaseModel):
@@ -34,3 +36,17 @@ class AdminAnalyticsOverview(BaseModel):
     total_bookings: int
     completed_bookings: int
     cancelled_bookings: int
+
+
+class AdminBannerUploadResponse(BaseModel):
+    urls: list[str]
+
+
+class AdminResolveMapLinkRequest(BaseModel):
+    gmaps_link: str = Field(min_length=8, max_length=2000)
+
+
+class AdminResolveMapLinkResponse(BaseModel):
+    latitude: float
+    longitude: float
+    resolved_url: str
