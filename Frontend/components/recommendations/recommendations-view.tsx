@@ -54,7 +54,7 @@ export function RecommendationsView() {
       if (v.rating < minRating[0]) return false
       return true
     })
-  }, [activeTab, maxDistance, minRating])
+  }, [vendors, activeTab, maxDistance, minRating])
 
   const resetFilters = () => {
     setActiveTab("all")
