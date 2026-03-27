@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
+
 from app.db import supabase, supabase_admin
 from app.schemas.auth import (
+    GoogleSignInRequest,
     RegisterRequest,
     LoginRequest,
     TokenResponse,
@@ -10,7 +14,9 @@ from app.schemas.auth import (
     GenericMessageResponse,
     MeResponse,
 )
+from app.core.config import settings
 from app.core.security import (
+    create_access_token,
     decode_email_verification_token,
     get_current_user,
 )
@@ -88,6 +94,80 @@ async def login(payload: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     return TokenResponse(access_token=session.access_token)
+
+
+@router.post('/auth/google', response_model=TokenResponse)
+async def google_sign_in(payload: GoogleSignInRequest):
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google sign-in is not configured on the backend")
+
+    try:
+        token_payload = google_id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Google credential")
+
+    email = token_payload.get("email")
+    email_verified = bool(token_payload.get("email_verified"))
+    name = token_payload.get("name") or (email.split("@")[0] if email else "Google User")
+
+    if not email or not email_verified:
+        raise HTTPException(status_code=401, detail="Google account email is not verified")
+
+    rows = supabase.table("users").select("id,role,name").eq("email", email).limit(1).execute().data or []
+
+    user_id = None
+    role = "USER"
+    if rows:
+        user_id = rows[0].get("id")
+        role = str(rows[0].get("role") or "USER").upper()
+        if not rows[0].get("name") and supabase_admin:
+            try:
+                supabase_admin.table("users").update({"name": name}).eq("id", user_id).execute()
+            except Exception:
+                pass
+    else:
+        if not supabase_admin:
+            raise HTTPException(status_code=500, detail="Google sign-in requires SUPABASE_SERVICE_ROLE_KEY")
+
+        try:
+            created = supabase_admin.auth.admin.create_user(
+                {
+                    "email": email,
+                    "email_confirm": True,
+                    "user_metadata": {
+                        "name": name,
+                        "role": "USER",
+                    },
+                }
+            )
+            user = getattr(created, "user", None)
+            user_id = getattr(user, "id", None)
+            if not user_id:
+                raise ValueError("no user id returned from Supabase admin create_user")
+
+            supabase_admin.table("users").insert(
+                {
+                    "id": user_id,
+                    "email": email,
+                    "password": "[GOOGLE_OAUTH]",
+                    "name": name,
+                    "phone": "",
+                    "role": "USER",
+                    "is_verified": True,
+                }
+            ).execute()
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Google sign-in failed: {exc}")
+
+    if not user_id:
+        raise HTTPException(status_code=500, detail="Google sign-in failed: user could not be resolved")
+
+    token = create_access_token({"sub": user_id, "user_id": user_id, "email": email, "role": role})
+    return TokenResponse(access_token=token)
 
 
 @router.post('/auth/verify-email', response_model=GenericMessageResponse)

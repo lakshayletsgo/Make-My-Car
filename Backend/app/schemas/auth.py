@@ -14,6 +14,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class GoogleSignInRequest(BaseModel):
+    credential: str
+
+
 class VerifyEmailRequest(BaseModel):
     token: str
 

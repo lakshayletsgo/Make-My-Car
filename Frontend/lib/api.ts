@@ -127,6 +127,13 @@ export async function login(email: string, password: string) {
 	});
 }
 
+export async function loginWithGoogle(credential: string) {
+	return apiFetch('/auth/google', {
+		method: 'POST',
+		body: JSON.stringify({ credential }),
+	});
+}
+
 export async function register(payload: { email: string; password: string; name: string; phone?: string }) {
 	return apiFetch('/auth/register', {
 		method: 'POST',
