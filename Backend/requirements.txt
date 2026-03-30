@@ -8,3 +8,7 @@ starlette
 supabase
 uvicorn
 google-auth
+python-dotenv
+pydantic[email]
+pydantic-settings
+python-multipart
