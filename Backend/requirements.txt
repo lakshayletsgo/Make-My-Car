@@ -4,7 +4,6 @@ protobuf
 pydantic
 pydantic_settings
 PyJWT==2.10.1
-PyJWT
 starlette
 supabase
 uvicorn
