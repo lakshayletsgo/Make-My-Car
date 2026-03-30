@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+supabase
+python-dotenv
+passlib[bcrypt]
+pyjwt
+pydantic
+pydantic-settings
+python-multipart
+google-auth

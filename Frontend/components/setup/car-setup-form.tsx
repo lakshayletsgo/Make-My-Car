@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ArrowLeft, ArrowRight, Car, Check, Fuel, MapPin, Gauge, Sparkles } from "lucide-react"
+import { createCar, listCarBrands, listCarModels, listCities, type CarBrand, type CarModel, type City } from "@/lib/api"
 
 const steps = [
   { id: 1, title: "Brand", description: "Select manufacturer", icon: Car },
@@ -20,52 +21,52 @@ const steps = [
   { id: 4, title: "Location", description: "Your city", icon: MapPin },
 ]
 
-const carBrands = [
-  "Maruti Suzuki", "Hyundai", "Tata", "Mahindra", "Kia",
-  "Toyota", "Honda", "MG", "Skoda", "Volkswagen",
-]
-
-const carModels: Record<string, string[]> = {
-  "Maruti Suzuki": ["Swift", "Baleno", "Brezza", "Ertiga", "Dzire", "Alto", "WagonR"],
-  "Hyundai": ["Creta", "Venue", "i20", "Verna", "Tucson", "Aura"],
-  "Tata": ["Nexon", "Punch", "Harrier", "Safari", "Altroz", "Tiago"],
-  "Mahindra": ["XUV700", "Thar", "Scorpio", "XUV300", "Bolero"],
-  "Kia": ["Seltos", "Sonet", "Carens", "EV6"],
-  "Toyota": ["Fortuner", "Innova", "Glanza", "Urban Cruiser", "Camry"],
-  "Honda": ["City", "Amaze", "Elevate", "WR-V"],
-  "MG": ["Hector", "Astor", "Gloster", "ZS EV", "Comet"],
-  "Skoda": ["Kushaq", "Slavia", "Superb", "Kodiaq"],
-  "Volkswagen": ["Taigun", "Virtus", "Tiguan"],
-}
-
 const variants = ["Base", "Mid", "Top", "Fully Loaded"]
 const fuelTypes = ["Petrol", "Diesel", "CNG", "Electric", "Hybrid"]
-const cities = [
-  "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai",
-  "Pune", "Kolkata", "Ahmedabad", "Jaipur", "Lucknow",
-]
 
 export function CarSetupForm() {
   const router = useRouter()
+  const [brands, setBrands] = useState<CarBrand[]>([])
+  const [models, setModels] = useState<CarModel[]>([])
+  const [cities, setCities] = useState<City[]>([])
+  const [error, setError] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     brand: "",
+    brandId: "",
     model: "",
+    modelId: "",
     variant: "",
     fuelType: "",
     city: "",
+    cityId: "",
     year: "",
   })
   const [saved, setSaved] = useState(false)
 
-  const availableModels = formData.brand ? carModels[formData.brand] || [] : []
+  useEffect(() => {
+    async function loadMeta() {
+      try {
+        const [brandRows, cityRows] = await Promise.all([listCarBrands(), listCities()])
+        setBrands(brandRows)
+        setCities(cityRows)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load car metadata")
+      }
+    }
+
+    loadMeta()
+  }, [])
+
+  const availableModels = models
 
   const canProceed = () => {
     switch (step) {
       case 1: return !!formData.brand
-      case 2: return !!formData.model
+      case 2: return !!formData.model && !!formData.modelId
       case 3: return !!formData.variant && !!formData.fuelType
-      case 4: return !!formData.city
+      case 4: return !!formData.city && !!formData.cityId
       default: return false
     }
   }
@@ -78,11 +79,27 @@ export function CarSetupForm() {
     if (step > 1) setStep(step - 1)
   }
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => {
-      router.push("/recommendations")
-    }, 1500)
+  const handleSave = async () => {
+    try {
+      setIsSaving(true)
+      setError("")
+      await createCar({
+        brand_id: formData.brandId,
+        model_id: formData.modelId,
+        variant: formData.variant,
+        fuel_type: formData.fuelType.toUpperCase(),
+        year: Number(formData.year || new Date().getFullYear()),
+        city_id: formData.cityId,
+      })
+      setSaved(true)
+      setTimeout(() => {
+        router.push("/recommendations")
+      }, 1500)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save car profile")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   if (saved) {
@@ -155,7 +172,7 @@ export function CarSetupForm() {
       </div>
 
       {/* Step Content */}
-      <div className="p-6 md:p-8 min-h-[320px]">
+      <div className="p-6 md:p-8 min-h-80">
         {step === 1 && (
           <div className="flex flex-col gap-5">
             <div>
@@ -163,17 +180,25 @@ export function CarSetupForm() {
               <p className="mt-1 text-sm text-muted-foreground">Choose the manufacturer of your vehicle.</p>
             </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-              {carBrands.map((brand) => (
+              {brands.map((brand) => (
                 <button
-                  key={brand}
-                  onClick={() => setFormData({ ...formData, brand, model: "" })}
+                  key={brand.id}
+                  onClick={async () => {
+                    setFormData({ ...formData, brand: brand.name, brandId: brand.id, model: "", modelId: "" })
+                    try {
+                      const modelRows = await listCarModels(brand.id)
+                      setModels(modelRows)
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Failed to load models")
+                    }
+                  }}
                   className={`rounded-xl border p-4 text-center text-sm font-medium transition-all ${
-                    formData.brand === brand
+                    formData.brand === brand.name
                       ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10"
                       : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted"
                   }`}
                 >
-                  {brand}
+                  {brand.name}
                 </button>
               ))}
             </div>
@@ -191,15 +216,15 @@ export function CarSetupForm() {
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {availableModels.map((model) => (
                 <button
-                  key={model}
-                  onClick={() => setFormData({ ...formData, model })}
+                  key={model.id}
+                  onClick={() => setFormData({ ...formData, model: model.name, modelId: model.id })}
                   className={`rounded-xl border p-4 text-center text-sm font-medium transition-all ${
-                    formData.model === model
+                    formData.model === model.name
                       ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10"
                       : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted"
                   }`}
                 >
-                  {model}
+                  {model.name}
                 </button>
               ))}
             </div>
@@ -273,16 +298,16 @@ export function CarSetupForm() {
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
               {cities.map((city) => (
                 <button
-                  key={city}
-                  onClick={() => setFormData({ ...formData, city })}
+                  key={city.id}
+                  onClick={() => setFormData({ ...formData, city: city.name, cityId: city.id })}
                   className={`flex items-center justify-center gap-2 rounded-xl border p-4 text-sm font-medium transition-all ${
-                    formData.city === city
+                    formData.city === city.name
                       ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10"
                       : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted"
                   }`}
                 >
                   <MapPin className="h-4 w-4" />
-                  {city}
+                  {city.name}
                 </button>
               ))}
             </div>
@@ -314,6 +339,7 @@ export function CarSetupForm() {
 
       {/* Navigation */}
       <div className="flex items-center justify-between border-t border-border bg-muted/30 p-6 md:p-8">
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <Button
           variant="outline"
           onClick={handleBack}
@@ -335,10 +361,10 @@ export function CarSetupForm() {
         ) : (
           <Button
             onClick={handleSave}
-            disabled={!canProceed()}
+            disabled={!canProceed() || isSaving}
             className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25"
           >
-            Save & Get Recommendations
+            {isSaving ? "Saving..." : "Save & Get Recommendations"}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         )}

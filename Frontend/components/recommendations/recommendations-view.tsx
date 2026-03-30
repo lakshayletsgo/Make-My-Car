@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { VendorCard } from "@/components/recommendations/vendor-card"
 import { MapView } from "@/components/recommendations/map-view"
 import { Shield, Wrench, ShieldCheck, Settings, SlidersHorizontal, Map, LayoutGrid, X, Search } from "lucide-react"
-import { vendors } from "@/lib/vendor-data"
+import { listVendors } from "@/lib/api"
+import { mapApiVendorToView, type VendorView } from "@/lib/vendors"
 
 const categories = [
   { value: "all", label: "All Services", icon: LayoutGrid },
@@ -19,11 +20,31 @@ const categories = [
 ]
 
 export function RecommendationsView() {
+  const [vendors, setVendors] = useState<VendorView[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [showMap, setShowMap] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [maxDistance, setMaxDistance] = useState([10])
   const [minRating, setMinRating] = useState([0])
+
+  useEffect(() => {
+    async function loadVendors() {
+      try {
+        setLoading(true)
+        setError("")
+        const data = await listVendors()
+        setVendors(data.map(mapApiVendorToView))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load vendors")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadVendors()
+  }, [])
 
   const filteredVendors = useMemo(() => {
     return vendors.filter((v) => {
@@ -33,7 +54,7 @@ export function RecommendationsView() {
       if (v.rating < minRating[0]) return false
       return true
     })
-  }, [activeTab, maxDistance, minRating])
+  }, [vendors, activeTab, maxDistance, minRating])
 
   const resetFilters = () => {
     setActiveTab("all")
@@ -149,10 +170,16 @@ export function RecommendationsView() {
       {/* Results Count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
+          {loading ? "Loading vendors..." : null}
+          {error ? `Error: ${error}` : null}
+          {!loading && !error ? (
+            <>
           Showing <span className="font-semibold text-foreground">{filteredVendors.length}</span> results
           {activeTab !== "all" && (
             <span> in <span className="text-primary font-medium">{categories.find(c => c.value === activeTab)?.label}</span></span>
           )}
+            </>
+          ) : null}
         </p>
         {(activeTab !== "all" || maxDistance[0] !== 10 || minRating[0] !== 0) && (
           <Badge 

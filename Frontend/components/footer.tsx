@@ -3,7 +3,7 @@ import { Car } from "lucide-react"
 
 const footerLinks = {
   Platform: [
-    { href: "/setup", label: "Add Your Car" },
+    { href: "/add-car", label: "Add Your Car" },
     { href: "/recommendations", label: "Recommendations" },
     { href: "/dashboard", label: "Dashboard" },
   ],

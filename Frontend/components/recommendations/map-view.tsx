@@ -1,92 +1,160 @@
-import { MapPin, Navigation, Locate } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import type { Vendor } from "@/lib/vendor-data"
+"use client"
 
-export function MapView({ vendors }: { vendors: Vendor[] }) {
+import { useMemo, useState } from "react"
+import { GoogleMap, InfoWindowF, MarkerF, useJsApiLoader } from "@react-google-maps/api"
+import { MapPin, Locate } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import type { VendorView } from "@/lib/vendors"
+
+const DEFAULT_CENTER = { lat: 20.5937, lng: 78.9629 }
+const mapContainerStyle = { width: "100%", height: "100%" }
+
+export function MapView({ vendors }: { vendors: VendorView[] }) {
+  const [locationMessage, setLocationMessage] = useState("")
+  const [isLocating, setIsLocating] = useState(false)
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "vendor-map-script",
+    googleMapsApiKey,
+  })
+
+  const vendorsWithCoords = useMemo(
+    () => vendors.filter((vendor) => vendor.latitude !== null && vendor.longitude !== null),
+    [vendors],
+  )
+
+  const selectedVendor = useMemo(
+    () => vendorsWithCoords.find((vendor) => vendor.id === selectedVendorId) || null,
+    [selectedVendorId, vendorsWithCoords],
+  )
+
+  const mapCenter = useMemo(() => {
+    if (userLocation) return userLocation
+    const firstVendor = vendorsWithCoords[0]
+    if (
+      firstVendor &&
+      typeof firstVendor.latitude === "number" &&
+      typeof firstVendor.longitude === "number"
+    ) {
+      return { lat: firstVendor.latitude, lng: firstVendor.longitude }
+    }
+    return DEFAULT_CENTER
+  }, [userLocation, vendorsWithCoords])
+
+  const handleLocateMe = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationMessage("Location services are not available in this browser.")
+      return
+    }
+
+    setIsLocating(true)
+    setLocationMessage("")
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = Number(position.coords.latitude.toFixed(6))
+        const lng = Number(position.coords.longitude.toFixed(6))
+        setUserLocation({ lat, lng })
+        setLocationMessage(`Location access granted: ${lat}, ${lng}`)
+        setIsLocating(false)
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationMessage("Location permission was denied. Please enable it in your browser settings.")
+        } else {
+          setLocationMessage("Unable to access your location right now.")
+        }
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    )
+  }
+
   return (
     <div className="relative rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
-      {/* Map placeholder */}
-      <div className="relative h-[300px] lg:h-[400px] bg-gradient-to-br from-muted via-muted/50 to-muted">
-        {/* Grid lines for visual effect */}
-        <div className="absolute inset-0 opacity-30 dark:opacity-20">
-          <div className="h-full w-full" style={{
-            backgroundImage: `linear-gradient(var(--primary) 1px, transparent 1px), linear-gradient(90deg, var(--primary) 1px, transparent 1px)`,
-            backgroundSize: '50px 50px',
-            opacity: 0.1
-          }} />
-        </div>
-
-        {/* Decorative circles */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-32 w-32 rounded-full border border-primary/20 animate-pulse" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-48 w-48 rounded-full border border-primary/10" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full border border-primary/5" />
-
-        {/* Center marker */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-          <div className="flex flex-col items-center">
-            <div className="rounded-full bg-primary p-3 shadow-xl shadow-primary/30 ring-4 ring-primary/20">
-              <Navigation className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div className="mt-2 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-lg">
-              You are here
-            </div>
+      <div className="relative h-75 lg:h-100 bg-muted/50">
+        {!googleMapsApiKey ? (
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
+            Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in Frontend/.env to enable map view.
           </div>
-        </div>
+        ) : loadError ? (
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-red-600">
+            Failed to load Google Maps. Check API key and billing settings.
+          </div>
+        ) : !isLoaded ? (
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
+            Loading map...
+          </div>
+        ) : (
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={mapCenter}
+            zoom={userLocation ? 13 : 11}
+            options={{
+              streetViewControl: false,
+              mapTypeControl: false,
+              fullscreenControl: false,
+            }}
+          >
+            {vendorsWithCoords.map((vendor) => (
+              <MarkerF
+                key={vendor.id}
+                position={{ lat: vendor.latitude as number, lng: vendor.longitude as number }}
+                title={vendor.name}
+                onClick={() => setSelectedVendorId(vendor.id)}
+              />
+            ))}
 
-        {/* Vendor markers */}
-        {vendors.slice(0, 6).map((vendor, i) => {
-          const positions = [
-            { left: "22%", top: "28%" },
-            { left: "72%", top: "22%" },
-            { left: "32%", top: "68%" },
-            { left: "78%", top: "62%" },
-            { left: "12%", top: "48%" },
-            { left: "62%", top: "42%" },
-          ]
-          const pos = positions[i]
-          return (
-            <div
-              key={vendor.id}
-              className="absolute flex flex-col items-center cursor-pointer group z-[5]"
-              style={{ left: pos.left, top: pos.top }}
-            >
-              <div className="rounded-full bg-card border-2 border-primary p-2 shadow-lg transition-all duration-300 group-hover:scale-125 group-hover:shadow-xl group-hover:shadow-primary/20">
-                <MapPin className="h-4 w-4 text-primary" />
-              </div>
-              <div className="mt-2 hidden group-hover:block rounded-xl bg-card border border-border px-3 py-2 shadow-xl z-20 animate-in fade-in zoom-in-95 duration-200">
-                <p className="text-sm font-semibold text-foreground whitespace-nowrap">{vendor.name}</p>
-                <p className="text-xs text-muted-foreground">{vendor.distance} away</p>
-              </div>
-            </div>
-          )
-        })}
+            {userLocation ? <MarkerF position={userLocation} title="You are here" /> : null}
+
+            {selectedVendor && selectedVendor.latitude !== null && selectedVendor.longitude !== null ? (
+              <InfoWindowF
+                position={{ lat: selectedVendor.latitude, lng: selectedVendor.longitude }}
+                onCloseClick={() => setSelectedVendorId(null)}
+              >
+                <div className="max-w-52">
+                  <p className="font-semibold text-foreground">{selectedVendor.name}</p>
+                  <p className="text-xs text-muted-foreground">{selectedVendor.distance} away</p>
+                </div>
+              </InfoWindowF>
+            ) : null}
+          </GoogleMap>
+        )}
 
         {/* Locate button */}
         <Button
           size="sm"
           variant="outline"
+          onClick={handleLocateMe}
+          disabled={isLocating}
           className="absolute bottom-4 right-4 bg-card/90 backdrop-blur-sm border-border shadow-lg hover:bg-card"
         >
           <Locate className="mr-2 h-4 w-4" />
-          Locate Me
+          {isLocating ? "Locating..." : "Locate Me"}
         </Button>
       </div>
 
       {/* Map legend */}
-      <div className="flex items-center justify-between border-t border-border bg-muted/30 px-5 py-4">
-        <span className="text-sm text-muted-foreground">
-          Showing <span className="font-semibold text-foreground">{vendors.length}</span> vendors nearby
-        </span>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-primary shadow-sm" />
-            <span className="text-sm text-muted-foreground">Your location</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full border-2 border-primary bg-card" />
-            <span className="text-sm text-muted-foreground">Vendors</span>
+      <div className="border-t border-border bg-muted/30 px-5 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm text-muted-foreground">
+            Showing <span className="font-semibold text-foreground">{vendorsWithCoords.length}</span> mapped vendors nearby
+          </span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-primary shadow-sm" />
+              <span className="text-sm text-muted-foreground">Your location</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-primary" />
+              <span className="text-sm text-muted-foreground">Vendors</span>
+            </div>
           </div>
         </div>
+        {locationMessage ? <p className="mt-2 text-sm text-muted-foreground">{locationMessage}</p> : null}
       </div>
     </div>
   )
