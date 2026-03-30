@@ -7,3 +7,4 @@ PyJWT==2.10.1
 starlette
 supabase
 uvicorn
+google-auth
