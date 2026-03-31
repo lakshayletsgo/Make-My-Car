@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 @router.post("/cars", response_model=CarOut, status_code=status.HTTP_201_CREATED)
-async def create_car(payload: CreateCarRequest, current_user=Depends(require_roles("USER"))):
+async def create_car(payload: CreateCarRequest, current_user=Depends(require_roles("USER", "ADMIN"))):
     inserted = (
         supabase.table("cars")
         .insert(
@@ -35,7 +35,7 @@ async def create_car(payload: CreateCarRequest, current_user=Depends(require_rol
 
 
 @router.get("/cars/me", response_model=list[CarOut])
-async def list_my_cars(current_user=Depends(require_roles("USER"))):
+async def list_my_cars(current_user=Depends(require_roles("USER", "ADMIN"))):
     rows = (
         supabase.table("cars")
         .select("id,user_id,brand_id,model_id,variant,fuel_type,year,city_id,is_active,created_at")
