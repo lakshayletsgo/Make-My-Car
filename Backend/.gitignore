@@ -1,7 +1,7 @@
 .env*
 client_secret_*.json
 /venv
-/.venv
 /__pycache__
 __pycache__/
 *.pyc
+.env
