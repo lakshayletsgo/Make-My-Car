@@ -8,3 +8,5 @@ pydantic
 pydantic-settings
 python-multipart
 google-auth
+email-validator
+aiosmtplib

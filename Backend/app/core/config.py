@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     EMAIL_VERIFY_EXPIRE_MINUTES: int = 30
     GOOGLE_CLIENT_ID: str = ""
+    # SMTP settings for email notifications
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_APP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "Make My Car"
 
     class Config:
         env_file = ".env"

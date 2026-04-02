@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.core.map_helpers import resolve_google_maps_link
 from app.core.security import require_roles
+from app.core.email import send_vendor_welcome_email
 from app.db import supabase, supabase_admin
 from app.schemas.admin import (
     AdminAnalyticsOverview,
@@ -185,8 +186,8 @@ async def create_vendor_by_admin(
                     "gallery": payload.gallery or [],
                     "city_id": payload.city_id,
                     "is_verified": True,
-                    "is_active": True,
-                    "location": payload.gmaps_link,
+                    "is_active": True
+                    # "location": payload.gmaps_link,
                 }
             )
             .execute()
@@ -198,6 +199,14 @@ async def create_vendor_by_admin(
             raise ValueError("Failed to insert vendor profile")
 
         vendor = inserted_vendor[0]
+
+        # Send welcome email with credentials
+        send_vendor_welcome_email(
+            vendor_email=payload.email,
+            vendor_name=payload.name,
+            vendor_id=vendor["id"],
+            temporary_password=temp_password,
+        )
 
         return {
             "message": "Vendor created successfully",
