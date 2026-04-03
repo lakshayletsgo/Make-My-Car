@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.core.email import send_vendor_booking_notification_email
 from app.core.security import require_roles
 from app.db import supabase
 from app.schemas.booking import (
@@ -20,7 +21,7 @@ def _resolve_vendor_for_user_email(email: str):
 
 @router.post("/bookings", response_model=BookingOut, status_code=status.HTTP_201_CREATED)
 async def create_booking(payload: CreateBookingRequest, current_user=Depends(require_roles("USER"))):
-    vendor = supabase.table("vendors").select("id,name").eq("id", payload.vendor_id).limit(1).execute().data or []
+    vendor = supabase.table("vendors").select("id,name,email").eq("id", payload.vendor_id).limit(1).execute().data or []
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
@@ -43,11 +44,26 @@ async def create_booking(payload: CreateBookingRequest, current_user=Depends(req
         raise HTTPException(status_code=500, detail="Failed to create booking")
 
     booking = inserted[0]
+    vendor_row = vendor[0]
+
+    vendor_email = vendor_row.get("email")
+    if vendor_email:
+        # Keep booking creation resilient even if email delivery fails.
+        send_vendor_booking_notification_email(
+            vendor_email=vendor_email,
+            vendor_name=vendor_row.get("name") or "Vendor",
+            booking_id=booking["id"],
+            slot_at=payload.slot_at,
+            customer_name=current_user.get("name"),
+            customer_email=current_user.get("email"),
+            notes=payload.notes,
+        )
+
     return {
         **booking,
         "user_name": current_user.get("name"),
         "user_email": current_user.get("email"),
-        "vendor_name": vendor[0].get("name"),
+        "vendor_name": vendor_row.get("name"),
     }
 
 

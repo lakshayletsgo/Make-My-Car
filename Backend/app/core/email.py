@@ -1,6 +1,7 @@
 """Email service for sending notifications via SMTP."""
 
 import smtplib
+from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
@@ -266,6 +267,138 @@ Make My Car Team
     return email_service.send_email(
         to_email=vendor_email,
         subject="Welcome to Make My Car - Your Vendor Account Credentials",
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+
+def send_vendor_booking_notification_email(
+    vendor_email: str,
+    vendor_name: str,
+    booking_id: str,
+    slot_at: datetime,
+    customer_name: Optional[str] = None,
+    customer_email: Optional[str] = None,
+    notes: Optional[str] = None,
+    dashboard_url: Optional[str] = None,
+) -> bool:
+    """Send booking notification email to vendor when a user books a slot."""
+    if not dashboard_url:
+        dashboard_url = f"{settings.APP_BASE_URL}/dashboard/vendor"
+
+    customer_name_display = customer_name or "Customer"
+    customer_email_display = customer_email or "Not provided"
+    notes_display = notes.strip() if notes and notes.strip() else "No additional notes"
+    slot_display = slot_at.strftime("%Y-%m-%d %H:%M")
+
+    text_body = f"""
+Hello {vendor_name},
+
+You have received a new booking on Make My Car.
+
+Booking ID: {booking_id}
+Scheduled Slot: {slot_display}
+Customer Name: {customer_name_display}
+Customer Email: {customer_email_display}
+Notes: {notes_display}
+
+You can review and manage this booking from your vendor dashboard:
+{dashboard_url}
+
+Best regards,
+Make My Car Team
+"""
+
+    html_body = f"""
+<html>
+<head>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }}
+        .header {{
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+            margin: -20px -20px 20px -20px;
+        }}
+        .header h1 {{
+            margin: 0;
+            color: #2c3e50;
+        }}
+        .details {{
+            background-color: #f5f5f5;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }}
+        .details p {{
+            margin: 8px 0;
+        }}
+        .label {{
+            font-weight: bold;
+            color: #2c3e50;
+        }}
+        .button {{
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #2c3e50;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 12px;
+        }}
+        .footer {{
+            margin-top: 24px;
+            font-size: 12px;
+            color: #777;
+            text-align: center;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>New Booking Received</h1>
+        </div>
+
+        <p>Hello <strong>{vendor_name}</strong>,</p>
+        <p>You have received a new booking on Make My Car.</p>
+
+        <div class="details">
+            <p><span class="label">Booking ID:</span> {booking_id}</p>
+            <p><span class="label">Scheduled Slot:</span> {slot_display}</p>
+            <p><span class="label">Customer Name:</span> {customer_name_display}</p>
+            <p><span class="label">Customer Email:</span> {customer_email_display}</p>
+            <p><span class="label">Notes:</span> {notes_display}</p>
+        </div>
+
+        <p>
+            <a href="{dashboard_url}" class="button">Open Vendor Dashboard</a>
+        </p>
+
+        <div class="footer">
+            <p>This is an automated message from Make My Car.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+    email_service = EmailService()
+    return email_service.send_email(
+        to_email=vendor_email,
+        subject="New Booking Alert - Make My Car",
         html_body=html_body,
         text_body=text_body,
     )
