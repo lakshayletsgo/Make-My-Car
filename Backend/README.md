@@ -23,6 +23,10 @@ pip install -r requirements.txt
 
 3. Apply the SQL schema in Supabase (use the SQL from the project `prisma/schema.prisma` converted SQL). You can run it in Supabase SQL editor.
 
+   For marketplace feature, also run:
+
+   - `sql/marketplace_listings.sql`
+
 4. Run dev server
 
 ```bash

@@ -120,6 +120,26 @@ export type CarBrand = { id: string; name: string };
 export type CarModel = { id: string; name: string; brand_id: string };
 export type City = { id: string; name: string; state: string };
 
+export type MarketplaceListing = {
+	id: string;
+	seller_id: string;
+	seller_name?: string | null;
+	title: string;
+	brand: string;
+	model: string;
+	variant: string;
+	year: number;
+	fuel_type: string;
+	city: string;
+	km_driven: number;
+	price: number;
+	description: string;
+	contact_phone: string;
+	image_url?: string | null;
+	status: string;
+	created_at: string;
+};
+
 export async function login(email: string, password: string) {
 	return apiFetch('/auth/login', {
 		method: 'POST',
@@ -273,4 +293,48 @@ export async function createCar(payload: {
 
 export async function listMyCars() {
 	return apiFetch('/cars/me');
+}
+
+export async function listMarketplaceListings(params?: {
+	search?: string;
+	city?: string;
+	fuel_type?: string;
+	min_price?: number;
+	max_price?: number;
+	limit?: number;
+}): Promise<MarketplaceListing[]> {
+	const searchParams = new URLSearchParams();
+	if (params?.search) searchParams.set('search', params.search);
+	if (params?.city) searchParams.set('city', params.city);
+	if (params?.fuel_type) searchParams.set('fuel_type', params.fuel_type);
+	if (params?.min_price !== undefined) searchParams.set('min_price', String(params.min_price));
+	if (params?.max_price !== undefined) searchParams.set('max_price', String(params.max_price));
+	if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
+
+	const query = searchParams.toString();
+	return apiFetch(`/marketplace/listings${query ? `?${query}` : ''}`);
+}
+
+export async function createMarketplaceListing(payload: {
+	title: string;
+	brand: string;
+	model: string;
+	variant: string;
+	year: number;
+	fuel_type: string;
+	city: string;
+	km_driven: number;
+	price: number;
+	description: string;
+	contact_phone: string;
+	image_url?: string;
+}): Promise<MarketplaceListing> {
+	return apiFetch('/marketplace/listings', {
+		method: 'POST',
+		body: JSON.stringify(payload),
+	});
+}
+
+export async function listMyMarketplaceListings(): Promise<MarketplaceListing[]> {
+	return apiFetch('/marketplace/listings/me');
 }

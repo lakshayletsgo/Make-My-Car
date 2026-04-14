@@ -11,6 +11,7 @@ import { clearSession, getDashboardRouteByRole, getStoredSession } from "@/lib/a
 
 const publicNavLinks = [
   { href: "/", label: "Home" },
+  { href: "/marketplace", label: "Marketplace" },
   { href: "/recommendations", label: "Explore" },
   { href: "/about", label: "About" },
 ]
